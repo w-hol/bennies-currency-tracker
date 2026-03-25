@@ -1,6 +1,7 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
+import { DEFAULT_STARTING_CASH } from "../lib/playerFinance";
 
 interface AddPlayerDialogProps {
   open: boolean;
@@ -38,7 +39,7 @@ export function AddPlayerDialog({
             </Dialog.Close>
           </div>
           <Dialog.Description className="text-sm text-muted-foreground mb-4">
-            Enter the name of the new player. They will start with 10 currency.
+            Enter the name of the new player. They will start with ${DEFAULT_STARTING_CASH} cash on hand and no debt.
           </Dialog.Description>
           <form onSubmit={handleSubmit}>
             <input

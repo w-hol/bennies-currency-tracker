@@ -5,12 +5,13 @@ A React + Vite currency tracker for a customizable list of players.
 ## Features
 
 - Add, edit, and remove players
-- New players start with `10` currency
-- Whole-number currency values only
+- New players start with `$10` cash on hand and `$0` debt
+- Whole-number cash and debt values only
+- Separate `Cash on Hand`, `Debt`, and `Available Funds` columns
 - Positive values in green, zero in gray, negative values in red
 - Dark mode enabled by default with a toggle
 - Local persistence with `localStorage`
-- Import/export support for `data.json`
+- Import/export support for `data.json`, including older single-currency exports
 
 ## Development
 

@@ -44,7 +44,7 @@ export function DeletePlayerDialog({
           <Dialog.Description className="mb-5 text-sm text-muted-foreground">
             Are you sure you want to delete{" "}
             <span className="font-medium text-foreground">{player?.name}</span>?
-            This action removes their currency total from the tracker.
+            This action removes their cash and debt details from the tracker.
           </Dialog.Description>
 
           <div className="flex justify-end gap-2">

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Download, Moon, Plus, Sun, Upload, Users } from "lucide-react";
-import type { Player } from "./types/player";
+import type { Player, PlayerBalanceUpdate } from "./types/player";
 import {
   applyTheme,
   exportToJson,
@@ -10,12 +10,11 @@ import {
   savePlayers,
   saveTheme,
 } from "./lib/storage";
-import { PlayerRow } from "./components/PlayerRow";
+import { DEFAULT_STARTING_CASH } from "./lib/playerFinance";
+import { PlayerTable } from "./components/PlayerTable";
 import { EditCurrencyDialog } from "./components/EditCurrencyDialog";
 import { AddPlayerDialog } from "./components/AddPlayerDialog";
 import { DeletePlayerDialog } from "./components/DeletePlayerDialog";
-
-const DEFAULT_CURRENCY = 10;
 
 function App() {
   const [players, setPlayers] = useState<Player[]>(loadPlayers);
@@ -35,13 +34,14 @@ function App() {
     const newPlayer: Player = {
       id: crypto.randomUUID(),
       name,
-      currency: DEFAULT_CURRENCY,
+      cashOnHand: DEFAULT_STARTING_CASH,
+      debt: 0,
     };
     persist([...players, newPlayer]);
   }
 
-  function handleEditCurrency(id: string, newCurrency: number) {
-    persist(players.map((p) => (p.id === id ? { ...p, currency: newCurrency } : p)));
+  function handleEditCurrency(id: string, values: PlayerBalanceUpdate) {
+    persist(players.map((p) => (p.id === id ? { ...p, ...values } : p)));
   }
 
   function handleRemovePlayer(id: string) {
@@ -76,14 +76,14 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-2xl mx-auto py-8 px-4">
+      <div className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
               Bennie's Currency Tracker
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Track each player&apos;s balance locally and import or export `data.json`.
+              Track each player&apos;s cash on hand, debt, and available funds locally.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -146,17 +146,11 @@ function App() {
               <p className="text-xs">Click "Add Player" to get started.</p>
             </div>
           ) : (
-            <div>
-              {players.map((player, i) => (
-                <PlayerRow
-                  key={player.id}
-                  player={player}
-                  index={i}
-                  onEdit={openEdit}
-                  onRemove={requestRemovePlayer}
-                />
-              ))}
-            </div>
+            <PlayerTable
+              players={players}
+              onEdit={openEdit}
+              onRemove={requestRemovePlayer}
+            />
           )}
         </div>
       </div>

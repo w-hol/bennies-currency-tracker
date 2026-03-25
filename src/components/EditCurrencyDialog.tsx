@@ -1,12 +1,29 @@
+import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import type { Player } from "../types/player";
+import { cn } from "../lib/cn";
+import { formatMoney } from "../lib/playerFinance";
+import type { Player, PlayerBalanceUpdate } from "../types/player";
 
 interface EditCurrencyDialogProps {
   player: Player | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (id: string, newCurrency: number) => void;
+  onSave: (id: string, values: PlayerBalanceUpdate) => void;
+}
+
+function parseWholeNumber(value: string): number | null {
+  if (value.trim() === "") {
+    return null;
+  }
+
+  const parsed = Number(value);
+
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    return null;
+  }
+
+  return parsed;
 }
 
 export function EditCurrencyDialog({
@@ -15,17 +32,6 @@ export function EditCurrencyDialog({
   onOpenChange,
   onSave,
 }: EditCurrencyDialogProps) {
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (!player) return;
-    const formData = new FormData(e.currentTarget);
-    const rawValue = formData.get("currency");
-    const parsed = parseInt(String(rawValue ?? ""), 10);
-    if (Number.isNaN(parsed)) return;
-    onSave(player.id, parsed);
-    onOpenChange(false);
-  }
-
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -33,46 +39,132 @@ export function EditCurrencyDialog({
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-background rounded-lg border border-border shadow-lg p-6 w-full max-w-sm">
           <div className="flex items-center justify-between mb-4">
             <Dialog.Title className="text-lg font-semibold">
-              Edit Currency
+              Adjust Player Funds
             </Dialog.Title>
             <Dialog.Close className="rounded-sm p-1 hover:bg-muted cursor-pointer">
               <X className="h-4 w-4" />
             </Dialog.Close>
           </div>
           <Dialog.Description className="text-sm text-muted-foreground mb-4">
-            Set a new currency value for{" "}
+            Update the cash on hand and debt for{" "}
             <span className="font-medium text-foreground">
               {player?.name}
             </span>
-            .
+            . Available funds are calculated automatically.
           </Dialog.Description>
-          <form onSubmit={handleSubmit}>
-            <input
-              key={player?.id ?? "empty-player"}
-              name="currency"
-              type="number"
-              defaultValue={player?.currency ?? 0}
-              className="no-spinner mb-4 w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              autoFocus
+          {player ? (
+            <EditCurrencyForm
+              key={player.id}
+              player={player}
+              onCancel={() => onOpenChange(false)}
+              onSave={(values) => {
+                onSave(player.id, values);
+                onOpenChange(false);
+              }}
             />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 cursor-pointer"
-              >
-                Save
-              </button>
-            </div>
-          </form>
+          ) : null}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+interface EditCurrencyFormProps {
+  player: Player;
+  onCancel: () => void;
+  onSave: (values: PlayerBalanceUpdate) => void;
+}
+
+function EditCurrencyForm({ player, onCancel, onSave }: EditCurrencyFormProps) {
+  const [cashOnHand, setCashOnHand] = useState(String(player.cashOnHand));
+  const [debt, setDebt] = useState(String(player.debt));
+
+  const parsedCashOnHand = useMemo(() => parseWholeNumber(cashOnHand), [cashOnHand]);
+  const parsedDebt = useMemo(() => parseWholeNumber(debt), [debt]);
+  const availableFunds =
+    parsedCashOnHand !== null && parsedDebt !== null
+      ? parsedCashOnHand - parsedDebt
+      : null;
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (parsedCashOnHand === null || parsedDebt === null) {
+      return;
+    }
+
+    onSave({
+      cashOnHand: parsedCashOnHand,
+      debt: parsedDebt,
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div className="mb-4 grid gap-4 sm:grid-cols-2">
+        <label className="grid gap-2 text-sm">
+          <span className="font-medium">Cash on Hand</span>
+          <input
+            name="cashOnHand"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1}
+            value={cashOnHand}
+            onChange={(e) => setCashOnHand(e.target.value)}
+            className="no-spinner w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            autoFocus
+          />
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="font-medium">Debt</span>
+          <input
+            name="debt"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            step={1}
+            value={debt}
+            onChange={(e) => setDebt(e.target.value)}
+            className="no-spinner w-full rounded-md border border-border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </label>
+      </div>
+      <div className="mb-4 rounded-md border border-border bg-muted/50 px-3 py-2 text-sm">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-muted-foreground">Available Funds</span>
+          <span
+            className={cn(
+              "font-mono font-semibold",
+              availableFunds === null
+                ? "text-muted-foreground"
+                : availableFunds === 0
+                  ? "text-muted-foreground"
+                  : availableFunds > 0
+                    ? "text-positive"
+                    : "text-negative"
+            )}
+          >
+            {availableFunds === null ? "Enter whole numbers" : formatMoney(availableFunds)}
+          </span>
+        </div>
+      </div>
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={parsedCashOnHand === null || parsedDebt === null}
+        >
+          Save Changes
+        </button>
+      </div>
+    </form>
   );
 }

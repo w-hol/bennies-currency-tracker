@@ -1,4 +1,5 @@
 import type { Player } from "../types/player";
+import { normalizePlayers } from "./playerFinance";
 
 const STORAGE_KEY = "bennies-currency-tracker";
 const THEME_STORAGE_KEY = "bennies-currency-tracker-theme";
@@ -25,8 +26,7 @@ export function loadPlayers(): Player[] {
     const raw = storage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed as Player[];
+    return normalizePlayers(parsed);
   } catch (error) {
     console.error("Failed to load saved players.", error);
     return [];
@@ -65,13 +65,15 @@ export function importFromJson(file: File): Promise<Player[]> {
     reader.onload = () => {
       try {
         const parsed: unknown = JSON.parse(reader.result as string);
-        if (!Array.isArray(parsed)) {
-          reject(new Error("Invalid format: expected an array of players"));
-          return;
-        }
-        resolve(parsed as Player[]);
-      } catch {
-        reject(new Error("Failed to parse JSON file"));
+        resolve(normalizePlayers(parsed));
+      } catch (error) {
+        reject(
+          error instanceof SyntaxError
+            ? new Error("Failed to parse JSON file")
+            : error instanceof Error
+              ? error
+              : new Error("Failed to parse JSON file")
+        );
       }
     };
     reader.onerror = () => reject(new Error("Failed to read file"));
